@@ -1,17 +1,17 @@
-// LinkedIn Post Highlighter — content.js
+// LinkedIn Post Highlighter - content feature
 // Robust against LinkedIn's dynamic DOM, supports infinite scroll
 
 (function () {
   'use strict';
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // -- State -----------------------------------------------------------------
   let keywords = [];
   let highlightedPosts = []; // Array of post root elements that matched
   let currentIndex = -1;
   let observer = null;
   let pendingHighlight = null; // debounce timer
 
-  // ── Post selectors (LinkedIn uses multiple layouts) ────────────────────────
+  // -- Post selectors (LinkedIn uses multiple layouts) -----------------------
   const POST_SELECTORS = [
     'div.feed-shared-update-v2',
     'div[data-urn*="activity"]',
@@ -29,18 +29,8 @@
     'span[dir]',
   ].join(',');
 
-  // ── Utilities ──────────────────────────────────────────────────────────────
-  function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  function buildPattern(kws) {
-    if (!kws.length) return null;
-    const parts = kws.map(escapeRegex);
-    return new RegExp(`(${parts.join('|')})`, 'gi');
-  }
-
-  // Walk text nodes only — don't clobber child elements
+  // -- Utilities --------------------------------------------------------------
+  // Walk text nodes only - don't clobber child elements
   function highlightTextNode(textNode, pattern) {
     const text = textNode.nodeValue;
     if (!pattern.test(text)) return false;
@@ -110,7 +100,7 @@
     });
   }
 
-  // ── Core highlight pass ────────────────────────────────────────────────────
+  // -- Core highlight pass ----------------------------------------------------
   function highlightAll() {
     // Clear previous highlights
     removeHighlights(document.body);
@@ -122,7 +112,7 @@
       return;
     }
 
-    const pattern = buildPattern(keywords);
+    const pattern = LPHCommon.buildPattern(keywords);
     if (!pattern) return;
 
     const posts = document.querySelectorAll(POST_SELECTORS);
@@ -137,11 +127,11 @@
 
       if (textContainers.length) {
         textContainers.forEach((tc) => {
-          matchCount += walkAndHighlight(tc, buildPattern(keywords));
+          matchCount += walkAndHighlight(tc, LPHCommon.buildPattern(keywords));
         });
       } else {
         // Fallback: scan the whole post
-        matchCount = walkAndHighlight(post, buildPattern(keywords));
+        matchCount = walkAndHighlight(post, LPHCommon.buildPattern(keywords));
       }
 
       post.classList.add('lph-processed');
@@ -174,7 +164,6 @@
   function highlightNewPosts() {
     if (!keywords.length) return;
 
-    const pattern = buildPattern(keywords);
     const posts = document.querySelectorAll(POST_SELECTORS);
     let changed = false;
 
@@ -186,10 +175,10 @@
 
       if (textContainers.length) {
         textContainers.forEach((tc) => {
-          matchCount += walkAndHighlight(tc, buildPattern(keywords));
+          matchCount += walkAndHighlight(tc, LPHCommon.buildPattern(keywords));
         });
       } else {
-        matchCount = walkAndHighlight(post, buildPattern(keywords));
+        matchCount = walkAndHighlight(post, LPHCommon.buildPattern(keywords));
       }
 
       post.classList.add('lph-processed');
@@ -209,7 +198,7 @@
     }
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
+  // -- Navigation -------------------------------------------------------------
   function scrollToPost(index) {
     if (!highlightedPosts.length) return;
     index = Math.max(0, Math.min(index, highlightedPosts.length - 1));
@@ -237,41 +226,24 @@
     scrollToPost(prev);
   }
 
-  // ── Notify popup of current state ─────────────────────────────────────────
+  // -- Notify popup of current state -----------------------------------------
   function notifyPopup(data) {
     chrome.runtime.sendMessage({ type: 'STATE_UPDATE', ...data }).catch(() => {});
   }
 
-  // ── Inject styles ──────────────────────────────────────────────────────────
+  // -- Inject styles ----------------------------------------------------------
   function injectStyles() {
-    if (document.getElementById('lph-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'lph-styles';
-    style.textContent = `
-      mark.lph-mark {
-        background: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
-        color: #1a1a2e;
-        border-radius: 3px;
-        padding: 1px 2px;
-        font-weight: 600;
-        box-shadow: 0 1px 3px rgba(253, 160, 133, 0.4);
-      }
-      .lph-matched {
-        outline: 2px solid rgba(253, 160, 133, 0.5);
-        outline-offset: 4px;
-        border-radius: 8px;
-        transition: outline 0.2s ease;
-      }
-      .lph-active {
-        outline: 3px solid #fda085 !important;
-        outline-offset: 6px;
-        box-shadow: 0 0 0 6px rgba(253, 160, 133, 0.15);
-      }
-    `;
-    document.head.appendChild(style);
+    if (document.getElementById('lph-content-style')) return;
+
+    const link = document.createElement('link');
+    link.id = 'lph-content-style';
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('css/post-highlighter.css');
+
+    (document.head || document.documentElement).appendChild(link);
   }
 
-  // ── MutationObserver for infinite scroll ───────────────────────────────────
+  // -- MutationObserver for infinite scroll ----------------------------------
   function startObserver() {
     if (observer) observer.disconnect();
 
@@ -295,11 +267,11 @@
     observer.observe(feedContainer, { childList: true, subtree: true });
   }
 
-  // ── Message listener from popup ────────────────────────────────────────────
+  // -- Message listener from popup -------------------------------------------
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     switch (msg.type) {
       case 'SET_KEYWORDS':
-        keywords = (msg.keywords || []).map((k) => k.trim()).filter(Boolean);
+        keywords = LPHCommon.normalizeKeywords(msg.keywords);
         highlightAll();
         sendResponse({ ok: true });
         break;
@@ -328,7 +300,7 @@
     return true; // keep channel open for async
   });
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // -- Init -------------------------------------------------------------------
   injectStyles();
   startObserver();
 

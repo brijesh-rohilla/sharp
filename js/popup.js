@@ -1,14 +1,14 @@
-// popup.js — LinkedIn Post Highlighter
+// LinkedIn Post Highlighter - popup feature
 
 (function () {
   'use strict';
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // -- State -----------------------------------------------------------------
   let keywords = [];
   let matchCount = 0;
   let currentIndex = -1;
 
-  // ── DOM refs ───────────────────────────────────────────────────────────────
+  // -- DOM refs ---------------------------------------------------------------
   const input = document.getElementById('kw-input');
   const btnAdd = document.getElementById('btn-add');
   const chipsEl = document.getElementById('chips-container');
@@ -20,7 +20,7 @@
   const btnNext = document.getElementById('btn-next');
   const btnClear = document.getElementById('btn-clear');
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // -- Helpers ----------------------------------------------------------------
   function getActiveTab(cb) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => cb(tabs[0]));
   }
@@ -30,9 +30,13 @@
       if (!tab) return;
       chrome.tabs.sendMessage(tab.id, msg, (response) => {
         if (chrome.runtime.lastError) {
-          // Content script not yet injected — try programmatic injection
-          chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] }, () =>
-            chrome.tabs.sendMessage(tab.id, msg, cb),
+          // Content script not yet injected - try programmatic injection
+          chrome.scripting.executeScript(
+            {
+              target: { tabId: tab.id },
+              files: ['js/common.js', 'js/content/post-highlighter.js'],
+            },
+            () => chrome.tabs.sendMessage(tab.id, msg, cb),
           );
           return;
         }
@@ -41,7 +45,7 @@
     });
   }
 
-  // ── UI: chips ──────────────────────────────────────────────────────────────
+  // -- UI: chips --------------------------------------------------------------
   function renderChips() {
     // Remove existing chips (keep hint span in DOM for toggle)
     chipsEl.querySelectorAll('.chip').forEach((c) => c.remove());
@@ -52,21 +56,14 @@
       const chip = document.createElement('div');
       chip.className = 'chip';
       chip.innerHTML = `
-        <span>${sanitize(kw)}</span>
+        <span>${LPHCommon.sanitize(kw)}</span>
         <button class="chip-remove" data-index="${i}" title="Remove">×</button>
       `;
       chipsEl.appendChild(chip);
     });
   }
 
-  function sanitize(str) {
-    return str.replace(
-      /[<>&"]/g,
-      (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c],
-    );
-  }
-
-  // ── UI: status ─────────────────────────────────────────────────────────────
+  // -- UI: status -------------------------------------------------------------
   function updateStatus() {
     if (matchCount === 0) {
       statusDot.classList.remove('active');
@@ -82,7 +79,7 @@
     btnNext.disabled = matchCount < 1;
   }
 
-  // ── Keyword management ─────────────────────────────────────────────────────
+  // -- Keyword management -----------------------------------------------------
   function addKeyword() {
     const val = input.value.trim();
     if (!val || keywords.includes(val)) {
@@ -112,7 +109,7 @@
     });
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
+  // -- Navigation -------------------------------------------------------------
   function navigate(direction) {
     sendToContent({ type: 'NAVIGATE', direction }, (res) => {
       if (res) {
@@ -123,7 +120,7 @@
     });
   }
 
-  // ── Clear ──────────────────────────────────────────────────────────────────
+  // -- Clear ------------------------------------------------------------------
   function clearAll() {
     keywords = [];
     matchCount = 0;
@@ -134,7 +131,7 @@
     sendToContent({ type: 'CLEAR' });
   }
 
-  // ── State sync from content ────────────────────────────────────────────────
+  // -- State sync from content ------------------------------------------------
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'STATE_UPDATE') {
       matchCount = msg.matchCount ?? 0;
@@ -143,7 +140,7 @@
     }
   });
 
-  // ── Event listeners ────────────────────────────────────────────────────────
+  // -- Event listeners --------------------------------------------------------
   btnAdd.addEventListener('click', addKeyword);
 
   input.addEventListener('keydown', (e) => {
@@ -162,14 +159,14 @@
   btnNext.addEventListener('click', () => navigate('next'));
   btnClear.addEventListener('click', clearAll);
 
-  // ── Keyboard shortcuts in popup ────────────────────────────────────────────
+  // -- Keyboard shortcuts in popup -------------------------------------------
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === input) return;
     if (e.key === 'ArrowRight' || e.key === 'n') navigate('next');
     if (e.key === 'ArrowLeft' || e.key === 'p') navigate('prev');
   });
 
-  // ── Init: load saved keywords & sync state ─────────────────────────────────
+  // -- Init: load saved keywords & sync state --------------------------------
   chrome.storage.local.get(['lph_keywords'], (result) => {
     keywords = result.lph_keywords || [];
     renderChips();

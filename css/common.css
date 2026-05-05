@@ -1,0 +1,30 @@
+/* Shared popup base styles */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f0f13;
+  --surface: #1a1a24;
+  --surface2: #22222f;
+  --border: #2e2e3f;
+  --accent: #fda085;
+  --accent2: #f6d365;
+  --accent-glow: rgba(253, 160, 133, 0.25);
+  --text: #f0eff6;
+  --text-muted: #8887a0;
+  --radius: 10px;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+
+body {
+  width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  user-select: none;
+}
