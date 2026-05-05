@@ -158,6 +158,42 @@ input[type="text"]:focus {
   font-style: italic;
 }
 
+.extract-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extract-row {
+  display: flex;
+  gap: 8px;
+}
+
+.extract-row input[type='text'] {
+  flex: 1;
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.btn-copy {
+  width: 32px;
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .divider {
   height: 1px;
   background: var(--border);

@@ -8,6 +8,7 @@
   let keywords = [];
   let highlightedPosts = []; // Array of post root elements that matched
   let currentIndex = -1;
+  let contactInfo = { email: '', hrName: '', companyName: '' };
   let observer = null;
   let pendingHighlight = null; // debounce timer
 
@@ -30,6 +31,52 @@
   ].join(',');
 
   // -- Utilities --------------------------------------------------------------
+  function capitalizeWord(word) {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }
+
+  function getCompanyNameFromEmail(email) {
+    const domain = (email.split('@')[1] || '').toLowerCase();
+    const companyToken = domain.split('.')[0] || '';
+    return capitalizeWord(companyToken);
+  }
+
+  function getHrNameFromEmail(email, companyName) {
+    const local = (email.split('@')[0] || '').toLowerCase();
+    const hasHrToken = local.includes('hr');
+    if (hasHrToken) return `${companyName} Team`;
+
+    const parts = local
+      .split(/[._-]+/)
+      .map((p) => p.replace(/\d+/g, '').trim())
+      .filter(Boolean)
+      .map(capitalizeWord);
+
+    return parts.length ? parts.join(' ') : `${companyName} Team`;
+  }
+
+  function extractContactInfoFromPost(post) {
+    const text = post?.innerText || '';
+    const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (!match) {
+      return { email: '', hrName: '', companyName: '' };
+    }
+
+    const email = match[0].toLowerCase();
+    const companyName = getCompanyNameFromEmail(email);
+    const hrName = getHrNameFromEmail(email, companyName);
+    return { email, hrName, companyName };
+  }
+
+  function onPostClick(e) {
+    const post = e.target?.closest?.(POST_SELECTORS);
+    if (!post) return;
+
+    contactInfo = extractContactInfoFromPost(post);
+    notifyPopup({ contactInfo });
+  }
+
   // Walk text nodes only - don't clobber child elements
   function highlightTextNode(textNode, pattern) {
     const text = textNode.nodeValue;
@@ -283,11 +330,12 @@
         break;
 
       case 'GET_STATE':
-        sendResponse({ matchCount: highlightedPosts.length, currentIndex, keywords });
+        sendResponse({ matchCount: highlightedPosts.length, currentIndex, keywords, contactInfo });
         break;
 
       case 'CLEAR':
         keywords = [];
+        contactInfo = { email: '', hrName: '', companyName: '' };
         removeHighlights(document.body);
         highlightedPosts = [];
         currentIndex = -1;
@@ -303,6 +351,7 @@
   // -- Init -------------------------------------------------------------------
   injectStyles();
   startObserver();
+  document.addEventListener('click', onPostClick, true);
 
   // Restore keywords from storage on page load
   chrome.storage.local.get(['lph_keywords'], (result) => {

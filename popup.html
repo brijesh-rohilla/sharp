@@ -32,10 +32,28 @@
 
     <!-- Chips -->
     <div id="chips-container" class="chips">
-      <span class="no-keywords" id="no-kw-hint">No keywords yet — add one above</span>
     </div>
 
     <div class="divider"></div>
+
+    <!-- Contact Extractor -->
+    <div>
+      <div class="label">Post Contact</div>
+      <div class="extract-grid">
+        <div class="extract-row">
+          <input type="text" id="company-input" placeholder="Company name" autocomplete="off" />
+          <button class="btn-copy" id="copy-company" title="Copy company">&#128203;</button>
+        </div>
+        <div class="extract-row">
+          <input type="text" id="hr-input" placeholder="HR name" autocomplete="off" />
+          <button class="btn-copy" id="copy-hr" title="Copy HR name">&#128203;</button>
+        </div>
+        <div class="extract-row">
+          <input type="text" id="email-input" placeholder="Email" autocomplete="off" />
+          <button class="btn-copy" id="copy-email" title="Copy email">&#128203;</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Status -->
     <div class="status">

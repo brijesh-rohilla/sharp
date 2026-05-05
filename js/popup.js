@@ -7,18 +7,24 @@
   let keywords = [];
   let matchCount = 0;
   let currentIndex = -1;
+  let contactInfo = { email: '', hrName: '', companyName: '' };
 
   // -- DOM refs ---------------------------------------------------------------
   const input = document.getElementById('kw-input');
   const btnAdd = document.getElementById('btn-add');
   const chipsEl = document.getElementById('chips-container');
-  const noKwHint = document.getElementById('no-kw-hint');
   const statusDot = document.getElementById('status-dot');
   const statusText = document.getElementById('status-text');
   const statusSub = document.getElementById('status-sub');
   const btnPrev = document.getElementById('btn-prev');
   const btnNext = document.getElementById('btn-next');
   const btnClear = document.getElementById('btn-clear');
+  const companyInput = document.getElementById('company-input');
+  const hrInput = document.getElementById('hr-input');
+  const emailInput = document.getElementById('email-input');
+  const copyCompany = document.getElementById('copy-company');
+  const copyHr = document.getElementById('copy-hr');
+  const copyEmail = document.getElementById('copy-email');
 
   // -- Helpers ----------------------------------------------------------------
   function getActiveTab(cb) {
@@ -34,7 +40,7 @@
           chrome.scripting.executeScript(
             {
               target: { tabId: tab.id },
-              files: ['js/common.js', 'js/content/post-highlighter.js'],
+              files: ['js/common.js', 'js/post-highlighter.js'],
             },
             () => chrome.tabs.sendMessage(tab.id, msg, cb),
           );
@@ -49,8 +55,6 @@
   function renderChips() {
     // Remove existing chips (keep hint span in DOM for toggle)
     chipsEl.querySelectorAll('.chip').forEach((c) => c.remove());
-
-    noKwHint.style.display = keywords.length ? 'none' : 'inline';
 
     keywords.forEach((kw, i) => {
       const chip = document.createElement('div');
@@ -77,6 +81,24 @@
 
     btnPrev.disabled = matchCount < 1;
     btnNext.disabled = matchCount < 1;
+  }
+
+  function renderContactInfo() {
+    companyInput.value = contactInfo.companyName || '';
+    hrInput.value = contactInfo.hrName || '';
+    emailInput.value = contactInfo.email || '';
+  }
+
+  function copyValue(inputEl, btnEl) {
+    const value = inputEl.value.trim();
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      const prev = btnEl.textContent;
+      btnEl.textContent = 'Copied';
+      setTimeout(() => {
+        btnEl.textContent = prev;
+      }, 900);
+    });
   }
 
   // -- Keyword management -----------------------------------------------------
@@ -125,8 +147,10 @@
     keywords = [];
     matchCount = 0;
     currentIndex = -1;
+    contactInfo = { email: '', hrName: '', companyName: '' };
     chrome.storage.local.set({ lph_keywords: [] });
     renderChips();
+    renderContactInfo();
     updateStatus();
     sendToContent({ type: 'CLEAR' });
   }
@@ -136,6 +160,10 @@
     if (msg.type === 'STATE_UPDATE') {
       matchCount = msg.matchCount ?? 0;
       currentIndex = msg.currentIndex ?? -1;
+      if (msg.contactInfo) {
+        contactInfo = msg.contactInfo;
+        renderContactInfo();
+      }
       updateStatus();
     }
   });
@@ -158,6 +186,19 @@
   btnPrev.addEventListener('click', () => navigate('prev'));
   btnNext.addEventListener('click', () => navigate('next'));
   btnClear.addEventListener('click', clearAll);
+  copyCompany.addEventListener('click', () => copyValue(companyInput, copyCompany));
+  copyHr.addEventListener('click', () => copyValue(hrInput, copyHr));
+  copyEmail.addEventListener('click', () => copyValue(emailInput, copyEmail));
+
+  companyInput.addEventListener('input', () => {
+    contactInfo.companyName = companyInput.value;
+  });
+  hrInput.addEventListener('input', () => {
+    contactInfo.hrName = hrInput.value;
+  });
+  emailInput.addEventListener('input', () => {
+    contactInfo.email = emailInput.value;
+  });
 
   // -- Keyboard shortcuts in popup -------------------------------------------
   document.addEventListener('keydown', (e) => {
@@ -170,11 +211,16 @@
   chrome.storage.local.get(['lph_keywords'], (result) => {
     keywords = result.lph_keywords || [];
     renderChips();
+    renderContactInfo();
 
     sendToContent({ type: 'GET_STATE' }, (res) => {
       if (res) {
         matchCount = res.matchCount ?? 0;
         currentIndex = res.currentIndex ?? -1;
+        if (res.contactInfo) {
+          contactInfo = res.contactInfo;
+          renderContactInfo();
+        }
         // If keywords differ from stored (e.g. fresh page load), re-apply
         if (keywords.length && res.keywords?.length !== keywords.length) {
           sendToContent({ type: 'SET_KEYWORDS', keywords }, (res2) => {
